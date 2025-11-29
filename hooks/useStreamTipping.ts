@@ -59,11 +59,12 @@ export function useStreamTipping(chainId: number = 10143) {
       const contract = getContractSafe();
       const result = await readContract({
         contract,
-        method: "function getStream(address _user) external view returns (uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)",
+        method: "getStream",
         params: [account.address],
       });
 
-      const [ratePerSecond, startTime, balance, active, currentAmount] = result;
+      const [ratePerSecond, startTime, balance, active, currentAmount] =
+        result as [bigint, bigint, bigint, boolean, bigint];
 
       if (active) {
         setStreamState({
@@ -95,12 +96,12 @@ export function useStreamTipping(chainId: number = 10143) {
       const contract = getContractSafe();
       const result = await readContract({
         contract,
-        method: "function isStreamLowBalance(address _user) external view returns (bool, uint256)",
+        method: "isStreamLowBalance",
         params: [account.address],
       });
 
-      const [isLow, remainingTime] = result;
-      return { isLow, remainingTime: Number(remainingTime) };
+      const [isLow, remainingTime] = result as [boolean, bigint];
+      return { isLow: Boolean(isLow), remainingTime: Number(remainingTime) };
     } catch (err) {
       console.error("Failed to check low balance:", err);
       return { isLow: false, remainingTime: 0 };
@@ -144,7 +145,7 @@ export function useStreamTipping(chainId: number = 10143) {
       const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
-        method: "function startStream(uint256 _ratePerSecond) external payable",
+        method: "startStream",
         params: [rate],
         value: balance,
       });
@@ -193,7 +194,7 @@ export function useStreamTipping(chainId: number = 10143) {
       const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
-        method: "function stopStream() external",
+        method: "stopStream",
         params: [],
       });
 
@@ -248,7 +249,7 @@ export function useStreamTipping(chainId: number = 10143) {
       const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
-        method: "function topUpStream() external payable",
+        method: "topUpStream",
         params: [],
         value: topUp,
       });

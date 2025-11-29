@@ -1,10 +1,11 @@
 import deploymentInfo from "@/deployment-info";
+import { parseAbi } from "viem";
 
 /**
  * UnifiedTipping Contract ABI
  * 支持一次性打赏 + 流式打赏
  */
-export const UNIFIED_TIPPING_ABI = [
+export const UNIFIED_TIPPING_ABI = parseAbi([
   "function tip() external payable",
   "function startStream(uint256 _ratePerSecond) external payable",
   "function stopStream() external",
@@ -16,7 +17,7 @@ export const UNIFIED_TIPPING_ABI = [
   "event StreamStarted(address indexed tipper, uint256 ratePerSecond, uint256 balance, uint256 timestamp)",
   "event StreamTopUp(address indexed tipper, uint256 amount, uint256 newBalance)",
   "event StreamStopped(address indexed tipper, uint256 duration, uint256 amountUsed, uint256 platformShare, uint256 contractShare, uint256 refund, uint256 timestamp)",
-] as const;
+]);
 
 type DeploymentInfo = {
   monad: {

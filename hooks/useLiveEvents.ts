@@ -10,6 +10,7 @@ export interface TipEvent {
   amount: bigint
   timestamp: bigint
   type: 'instant' | 'stream'
+  tipper: string
 }
 
 /**
@@ -40,7 +41,8 @@ export function useLiveEvents(chainId: number) {
       const newEvent: TipEvent = {
         amount: diff,
         timestamp: now,
-        type: 'instant'
+        type: 'instant',
+        tipper: '0x0000000000000000000000000000000000000000'
       }
       setEvents((prev) => [newEvent, ...prev].slice(0, 50))
     }
@@ -51,7 +53,8 @@ export function useLiveEvents(chainId: number) {
       const newEvent: TipEvent = {
         amount: diff,
         timestamp: now,
-        type: 'stream'
+        type: 'stream',
+        tipper: '0x0000000000000000000000000000000000000000'
       }
       setEvents((prev) => [newEvent, ...prev].slice(0, 50))
     }

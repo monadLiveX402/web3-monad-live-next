@@ -47,15 +47,21 @@ export function useUnifiedTipping(chainId: number) {
 
       const result = await readContract({
         contract,
-        method: "function getStats() external view returns (uint256 _instantVolume, uint256 _streamVolume, uint256 _activeStreams)",
+        method: "getStats",
         params: [],
       });
 
+      const [instantVolume, streamVolume, activeStreams] = result as [
+        bigint,
+        bigint,
+        bigint
+      ];
+
       setContractStats({
-        instantVolume: result[0],
-        streamVolume: result[1],
-        activeStreams: result[2],
-        totalVolume: result[0] + result[1],
+        instantVolume,
+        streamVolume,
+        activeStreams,
+        totalVolume: instantVolume + streamVolume,
       });
       setError(null);
     } catch (err: any) {

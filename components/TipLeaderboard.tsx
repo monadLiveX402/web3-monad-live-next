@@ -26,7 +26,8 @@ export function TipLeaderboard({
   limit = 50,
 }: TipLeaderboardProps) {
   // 仅使用实时事件（合约无历史查询接口）
-  const { events: liveEvents, loading: loadingEvents } = useLiveEvents(chainId);
+  const { events: liveEvents, isListening } = useLiveEvents(chainId);
+  const loadingEvents = !isListening && liveEvents.length === 0;
   const currency = chainId === 10143 ? "MON" : "ETH";
 
   // 合并历史数据和实时数据，并计算排行榜

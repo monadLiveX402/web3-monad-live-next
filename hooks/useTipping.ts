@@ -52,7 +52,7 @@ export function useTipping() {
       // Prepare transaction
       const transaction = prepareContractCall({
         contract,
-        method: "function tip() external payable",
+        method: "tip",
         params: [],
         value: BigInt(amount),
       });
