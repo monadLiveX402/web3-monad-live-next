@@ -94,10 +94,10 @@ export default function HLSPlayerComponent({ streamUrl, poster }: HLSPlayerCompo
   }, [streamUrl]);
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
       <video
         ref={videoRef}
-        className="w-full rounded-lg overflow-hidden bg-black"
+        className="absolute inset-0 h-full w-full object-cover"
         controls
         autoPlay
         playsInline
