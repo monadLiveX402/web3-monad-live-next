@@ -62,9 +62,7 @@ export default function Home() {
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center text-white font-bold">
                 M
               </div>
-              <span className="text-white font-semibold text-lg">
-                Monad Live
-              </span>
+              <span className="text-white font-semibold text-lg">LiveFi</span>
               <span className="text-gray-400 ml-6">直播场景：CryptoFlow</span>
             </div>
 
@@ -107,17 +105,6 @@ export default function Home() {
                   <div className="w-2 h-2 rounded-full bg-purple-400"></div>
                   Monad
                 </button>
-                <button
-                  onClick={() => handleChainSwitch('ethereum')}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                    currentChain === 'ethereum'
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                >
-                  <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                  Ethereum
-                </button>
               </div>
 
               {/* Connect Wallet */}
@@ -155,8 +142,11 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
   const wallet = useActiveWallet()
 
   const chainId = currentChain === 'monad' ? 10143 : 11155111
-  const { contractStats, loading: statsLoading, refresh } =
-    useUnifiedTipping(chainId)
+  const {
+    contractStats,
+    loading: statsLoading,
+    refresh
+  } = useUnifiedTipping(chainId)
 
   // 打赏成功后刷新统计数据
   const handleTipSuccess = () => {
@@ -195,10 +185,7 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
 
         {/* Real-time Tip Events - Using blockchain data */}
         <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
-          <TipEventStream
-            chainId={chainId}
-            maxDisplay={5}
-          />
+          <TipEventStream chainId={chainId} maxDisplay={5} />
         </div>
       </div>
 
@@ -386,7 +373,9 @@ function DashboardPage({
             </div>
           </div>
           <div className="text-2xl font-bold text-white">
-            {statsLoading ? '...' : Number(contractStats?.activeStreams || BigInt(0))}
+            {statsLoading
+              ? '...'
+              : Number(contractStats?.activeStreams || BigInt(0))}
           </div>
           <div className="text-xs text-green-400 mt-1">✓ 持续流中</div>
         </div>

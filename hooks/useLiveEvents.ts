@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useUnifiedTipping, ContractStats } from './useLiveRoom'
+import { parseEther } from 'viem'
 
 /**
  * 打赏事件数据结构
@@ -14,12 +15,40 @@ export interface TipEvent {
 }
 
 /**
+ * 生成默认的模拟打赏数据
+ */
+function generateMockTipEvents(): TipEvent[] {
+  const now = Math.floor(Date.now() / 1000)
+  const mockEvents: TipEvent[] = []
+
+  for (let i = 0; i < 10; i++) {
+    // 生成0.001到0.002之间的随机金额
+    const randomAmount = (Math.random() * 0.001 + 0.001).toFixed(6)
+    // 随机选择类型
+    const type = Math.random() > 0.5 ? 'instant' : 'stream'
+    // 时间戳递减，让新的在前面
+    const timestamp = now - i * 60 // 每条相隔60秒
+    // 生成随机地址
+    const randomAddress = `0x${Math.random().toString(16).substring(2, 42).padEnd(40, '0')}`
+
+    mockEvents.push({
+      amount: parseEther(randomAmount),
+      timestamp: BigInt(timestamp),
+      type,
+      tipper: randomAddress
+    })
+  }
+
+  return mockEvents
+}
+
+/**
  * 基于合约统计数据变化生成打赏事件流
  * 这样可以确保数据来源统一，避免事件监听失败的问题
  */
 export function useLiveEvents(chainId: number) {
   const { contractStats, loading } = useUnifiedTipping(chainId)
-  const [events, setEvents] = useState<TipEvent[]>([])
+  const [events, setEvents] = useState<TipEvent[]>(generateMockTipEvents())
   const prevStatsRef = useRef<ContractStats | null>(null)
 
   useEffect(() => {
