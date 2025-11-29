@@ -48,8 +48,14 @@ function generateMockTipEvents(): TipEvent[] {
  */
 export function useLiveEvents(chainId: number) {
   const { contractStats, loading } = useUnifiedTipping(chainId)
-  const [events, setEvents] = useState<TipEvent[]>(generateMockTipEvents())
+  // Avoid server/client mismatch: start empty, seed mock events only on client
+  const [events, setEvents] = useState<TipEvent[]>([])
   const prevStatsRef = useRef<ContractStats | null>(null)
+
+  useEffect(() => {
+    // Seed mock events once on the client to avoid SSR randomness
+    setEvents(generateMockTipEvents())
+  }, [])
 
   useEffect(() => {
     if (!contractStats || loading) return

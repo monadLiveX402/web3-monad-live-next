@@ -19,6 +19,7 @@ declare global {
 export default function HLSPlayerComponent({ streamUrl, poster }: HLSPlayerComponentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isError, setIsError] = useState(false);
+  const isHls = streamUrl.endsWith(".m3u8");
 
   useEffect(() => {
     const video = videoRef.current;
@@ -41,6 +42,13 @@ export default function HLSPlayerComponent({ streamUrl, poster }: HLSPlayerCompo
 
     const startPlayback = () => {
       if (!video) return;
+
+      // If the stream is a plain MP4 (or non-HLS), set src directly.
+      if (!isHls) {
+        video.src = streamUrl;
+        video.play().catch(() => undefined);
+        return;
+      }
 
       // If the browser supports native HLS (Safari, some mobile browsers)
       if (video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -67,7 +75,10 @@ export default function HLSPlayerComponent({ streamUrl, poster }: HLSPlayerCompo
     };
 
     // Load hls.js from CDN if needed
-    if (window.Hls) {
+    if (!isHls) {
+      // No need to load hls.js for mp4/other formats
+      startPlayback();
+    } else if (window.Hls) {
       startPlayback();
     } else {
       scriptEl = document.querySelector('script[data-hls-js]') as HTMLScriptElement | null;
@@ -91,7 +102,7 @@ export default function HLSPlayerComponent({ streamUrl, poster }: HLSPlayerCompo
       }
       cleanup();
     };
-  }, [streamUrl]);
+  }, [streamUrl, isHls]);
 
   return (
     <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
