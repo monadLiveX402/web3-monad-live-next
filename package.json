@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "deploy:cloudflare": "bash scripts/deploy-cloudflare.sh",
     "demo:create-room": "node scripts/create-room.js",
     "check:contracts": "node scripts/check-contracts.js"
   },
