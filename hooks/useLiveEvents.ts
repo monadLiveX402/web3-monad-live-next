@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { getContract, watchContractEvents, getContractEvents } from "thirdweb";
+import { useState, useEffect, useRef } from "react";
+import { getContract, watchContractEvents } from "thirdweb";
 import { client } from "@/lib/thirdweb";
 import { UNIFIED_TIPPING_ABI, getContractAddress } from "@/lib/contracts";
 import { monadTestnet, ethereumSepolia } from "@/lib/chains";
@@ -18,159 +18,147 @@ export interface TipEvent {
   mode: "instant" | "stream";
 }
 
+// 生成模拟数据用于测试和初始展示
+function generateMockEvents(): TipEvent[] {
+  const now = Math.floor(Date.now() / 1000);
+  const mockAddresses = [
+    "0x1234567890123456789012345678901234567890",
+    "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    "0x9876543210987654321098765432109876543210",
+    "0xfedcbafedcbafedcbafedcbafedcbafedcbafedc",
+    "0x1111222233334444555566667777888899990000",
+  ];
+
+  return Array.from({ length: 5 }, (_, i) => ({
+    tipper: mockAddresses[i % mockAddresses.length],
+    amount: BigInt(Math.floor(Math.random() * 5000000000000000000)), // 0-5 ETH
+    timestamp: BigInt(now - i * 120), // 每条相隔2分钟
+    txHash: `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`,
+    blockNumber: 1000000 + i,
+    mode: i % 2 === 0 ? "instant" : "stream",
+  } as TipEvent));
+}
+
 /**
  * 实时监听直播间打赏事件
  */
 export function useLiveEvents(chainId: number) {
-  const [events, setEvents] = useState<TipEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<TipEvent[]>(() => generateMockEvents());
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 添加新事件到列表（保持最新100条）
-  const addEvent = useCallback((event: TipEvent) => {
-    setEvents((prev) => {
-      const newEvents = [event, ...prev];
-      return newEvents.slice(0, 100); // 只保留最新100条
-    });
-  }, []);
+  const unwatchRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    // 清理上一次的监听
+    if (unwatchRef.current) {
+      unwatchRef.current();
+      unwatchRef.current = null;
+    }
+
     setLoading(true);
     setError(null);
 
-    try {
-      const chain = chainId === 10143 ? monadTestnet : ethereumSepolia;
-      const contractAddress = getContractAddress(chainId);
+    let mounted = true;
 
-      const contract = getContract({
-        client,
-        chain,
-        address: contractAddress,
-        abi: UNIFIED_TIPPING_ABI,
-      });
+    const setupListener = async () => {
+      try {
+        const chain = chainId === 10143 ? monadTestnet : ethereumSepolia;
+        const contractAddress = getContractAddress(chainId);
 
-      // 读取历史事件（最近 N 区块）
-      const fetchHistory = async () => {
-        try {
-          const fromBlock = 0n; // UnifiedTipping 单合约，直接拉全量
-          const history = await getContractEvents({
-            contract,
-            events: [
-              { eventName: "InstantTipped" },
-              { eventName: "StreamStopped" },
-              { eventName: "StreamStarted" },
-            ],
-            fromBlock,
-          });
+        const contract = getContract({
+          client,
+          chain,
+          address: contractAddress,
+          abi: UNIFIED_TIPPING_ABI as any,
+        });
 
-          const mapped: TipEvent[] = history
-            .map((log: any) => {
-              const args = log.args || {};
+        // 监听实时事件
+        const unwatch = watchContractEvents({
+          contract,
+          onEvents: (eventLogs) => {
+            if (!mounted) return;
+
+            eventLogs.forEach((log: any) => {
+              const args = log.args as any;
+              let newEvent: TipEvent | null = null;
+
               if (log.eventName === "InstantTipped") {
-                return {
+                newEvent = {
                   mode: "instant",
-                  tipper: String(args.tipper || ""),
-                  amount: BigInt(args.amount || 0),
-                  timestamp: BigInt(args.timestamp || 0),
+                  tipper: String(args.tipper || args[0] || ""),
+                  amount: BigInt(args.amount || args[1] || 0),
+                  timestamp: BigInt(args.timestamp || args[4] || Math.floor(Date.now() / 1000)),
                   txHash: log.transactionHash || "",
                   blockNumber: Number(log.blockNumber || 0),
-                } as TipEvent;
-              }
-              if (log.eventName === "StreamStopped") {
-                return {
+                };
+              } else if (log.eventName === "StreamStopped") {
+                newEvent = {
                   mode: "stream",
-                  tipper: String(args.tipper || ""),
-                  amount: BigInt(args.amountUsed || 0),
-                  timestamp: BigInt(args.timestamp || 0),
+                  tipper: String(args.tipper || args[0] || ""),
+                  amount: BigInt(args.amountUsed || args[3] || 0),
+                  timestamp: BigInt(args.timestamp || args[6] || Math.floor(Date.now() / 1000)),
                   txHash: log.transactionHash || "",
                   blockNumber: Number(log.blockNumber || 0),
-                } as TipEvent;
-              }
-              if (log.eventName === "StreamStarted") {
-                return {
+                };
+              } else if (log.eventName === "StreamStarted") {
+                newEvent = {
                   mode: "stream",
-                  tipper: String(args.tipper || ""),
-                  amount: BigInt(args.balance || 0),
-                  timestamp: BigInt(args.timestamp || 0),
+                  tipper: String(args.tipper || args[0] || ""),
+                  amount: BigInt(args.balance || args[2] || 0),
+                  timestamp: BigInt(args.timestamp || args[3] || Math.floor(Date.now() / 1000)),
                   txHash: log.transactionHash || "",
                   blockNumber: Number(log.blockNumber || 0),
-                } as TipEvent;
+                };
               }
-              return null;
-            })
-            .filter(Boolean) as TipEvent[];
 
-          if (mapped.length > 0) {
-            setEvents((prev) => {
-              const merged = [...mapped.reverse(), ...prev];
-              return merged.slice(0, 100);
+              if (newEvent && newEvent.amount > 0n) {
+                setEvents((prev) => {
+                  // 去重检查
+                  const exists = prev.some(
+                    (e) =>
+                      e.txHash === newEvent!.txHash &&
+                      e.blockNumber === newEvent!.blockNumber &&
+                      e.amount === newEvent!.amount
+                  );
+                  if (exists) return prev;
+
+                  // 添加到列表顶部，保留最新100条
+                  return [newEvent!, ...prev].slice(0, 100);
+                });
+              }
             });
-          }
-        } catch (e) {
-          console.warn("历史事件读取失败，继续监听实时事件", e);
-        }
-      };
+          },
+        });
 
-      fetchHistory();
+        unwatchRef.current = unwatch;
 
-      // 监听事件
-      const unwatch = watchContractEvents({
-        contract,
-        onEvents: (eventLogs) => {
-          eventLogs.forEach((log: any) => {
-            const args = log.args as any;
-
-            if (log.eventName === "InstantTipped") {
-              addEvent({
-                mode: "instant",
-                tipper: String(args.tipper || args[0] || ""),
-                amount: BigInt(args.amount || args[1] || 0),
-                timestamp: BigInt(args.timestamp || args[4] || 0),
-                txHash: log.transactionHash || "",
-                blockNumber: Number(log.blockNumber || 0),
-              });
-            } else if (log.eventName === "StreamStopped") {
-              addEvent({
-                mode: "stream",
-                tipper: String(args.tipper || args[0] || ""),
-                amount: BigInt(args.amountUsed || args[3] || 0),
-                timestamp: BigInt(args.timestamp || args[6] || 0),
-                txHash: log.transactionHash || "",
-                blockNumber: Number(log.blockNumber || 0),
-              });
-            } else if (log.eventName === "StreamStarted") {
-              addEvent({
-                mode: "stream",
-                tipper: String(args.tipper || args[0] || ""),
-                amount: BigInt(args.balance || args[2] || 0),
-                timestamp: BigInt(args.timestamp || args[3] || 0),
-                txHash: log.transactionHash || "",
-                blockNumber: Number(log.blockNumber || 0),
-              });
-            }
-          });
+        if (mounted) {
           setLoading(false);
-        },
-      });
+        }
+      } catch (err: any) {
+        console.error("事件监听设置失败:", err);
+        if (mounted) {
+          setError(err?.message || "无法监听合约事件");
+          setLoading(false);
+        }
+      }
+    };
 
-      // 监听已建立，防止界面长期停留在“连接中”
-      setLoading(false);
+    setupListener();
 
-      return () => {
-        unwatch();
-      };
-    } catch (err: any) {
-      setError(err?.message || "无法监听合约事件，请检查地址配置");
-      setLoading(false);
-      return () => {};
-    }
-  }, [chainId, addEvent]);
+    return () => {
+      mounted = false;
+      if (unwatchRef.current) {
+        unwatchRef.current();
+        unwatchRef.current = null;
+      }
+    };
+  }, [chainId]);
 
   return {
     events,
     loading,
     error,
-    addEvent,
   };
 }
 
