@@ -26,7 +26,7 @@ export function LiveRoom({
   chainId,
   onTipSuccess,
 }: LiveRoomProps) {
-  const { loading, sendTip, sendMultipleTips } = useTipping();
+  const { loading, sendTip } = useTipping();
   const [tipAmount, setTipAmount] = useState("0.001");
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -40,7 +40,7 @@ export function LiveRoom({
       // Convert to wei (assuming MON/ETH has 18 decimals)
       const amountWei = (parseFloat(tipAmount) * 1e18).toString();
 
-      const result = await sendTip(wallet, account, roomId, amountWei, chainId);
+      const result = await sendTip(wallet, account, amountWei, chainId);
 
       if (result.success) {
         setShowSuccess(true);

@@ -1,12 +1,22 @@
 import { defineChain } from "thirdweb";
 
+const MONAD_RPC =
+  process.env.NEXT_PUBLIC_MONAD_RPC_URL ||
+  process.env.MONAD_RPC_URL ||
+  "https://testnet-rpc.monad.xyz";
+
+const SEPOLIA_RPC =
+  process.env.NEXT_PUBLIC_ETH_SEPOLIA_RPC_URL ||
+  process.env.ETH_SEPOLIA_RPC_URL ||
+  "https://eth-sepolia.g.alchemy.com/v2/demo";
+
 /**
  * Monad Testnet Configuration
  */
 export const monadTestnet = defineChain({
   id: 10143,
   name: "Monad Testnet",
-  rpc: "https://testnet-rpc.monad.xyz",
+  rpc: MONAD_RPC,
   nativeCurrency: {
     name: "Monad",
     symbol: "MON",
@@ -28,7 +38,7 @@ export const monadTestnet = defineChain({
 export const ethereumSepolia = defineChain({
   id: 11155111,
   name: "Ethereum Sepolia",
-  rpc: "https://eth-sepolia.g.alchemy.com/v2/demo",
+  rpc: SEPOLIA_RPC,
   nativeCurrency: {
     name: "Sepolia Ether",
     symbol: "ETH",
@@ -64,7 +74,7 @@ export const CHAINS: Record<string, ChainInfo> = {
     id: 10143,
     name: "Monad Testnet",
     symbol: "MON",
-    rpc: "https://testnet-rpc.monad.xyz",
+    rpc: MONAD_RPC,
     explorer: "https://testnet.monadexplorer.com",
     chain: monadTestnet,
   },
@@ -72,7 +82,7 @@ export const CHAINS: Record<string, ChainInfo> = {
     id: 11155111,
     name: "Ethereum Sepolia",
     symbol: "ETH",
-    rpc: "https://eth-sepolia.g.alchemy.com/v2/demo",
+    rpc: SEPOLIA_RPC,
     explorer: "https://sepolia.etherscan.io",
     chain: ethereumSepolia,
   },

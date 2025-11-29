@@ -1,5 +1,7 @@
 # Monad 直播打赏平台 - 部署总结
 
+> 已升级为单合约 `UnifiedTipping`。旧的 `LiveRoom`/`TipStream` 信息保留作历史记录，实际部署请以新合约为准。
+
 ## 📋 合约部署信息
 
 ### Monad 测试网（主网络）

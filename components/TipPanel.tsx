@@ -7,7 +7,6 @@ import { formatEther, parseEther } from "ethers";
 import type { Wallet, Account } from "thirdweb/wallets";
 
 interface TipPanelProps {
-  roomId: number;
   chainId?: number;
   wallet: Wallet | null;
   account: Account | null;
@@ -17,7 +16,6 @@ interface TipPanelProps {
 type TipMode = "instant" | "stream";
 
 export default function TipPanel({
-  roomId,
   chainId = 10143,
   wallet,
   account,
@@ -116,7 +114,7 @@ export default function TipPanel({
 
     try {
       const amountWei = (parseFloat(tipAmount) * 1e18).toString();
-      const result = await sendTip(wallet, account, roomId, amountWei, chainId);
+      const result = await sendTip(wallet, account, amountWei, chainId);
 
       if (result.success) {
         setShowSuccess(true);
@@ -136,7 +134,7 @@ export default function TipPanel({
     try {
       const rateWei = parseEther(ratePerSecond).toString();
       const balanceWei = parseEther(initialBalance).toString();
-      await startStream(roomId, rateWei, balanceWei);
+      await startStream(rateWei, balanceWei);
     } catch (err) {
       console.error("开始流式打赏失败:", err);
     }

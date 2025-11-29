@@ -5,15 +5,13 @@ import { prepareContractCall, sendTransaction, readContract } from "thirdweb";
 import { getContract } from "thirdweb";
 import { useActiveAccount, useActiveWallet } from "thirdweb/react";
 import { monadTestnet, ethereumSepolia } from "@/lib/chains";
-import { TIP_STREAM_ABI } from "@/lib/contracts";
-import deploymentInfo from "@/deployment-info";
+import { UNIFIED_TIPPING_ABI, getContractAddress } from "@/lib/contracts";
 import { client } from "@/lib/thirdweb";
 
 /**
  * 流式打赏状态
  */
 export interface StreamState {
-  roomId: bigint;
   ratePerSecond: bigint;
   startTime: bigint;
   balance: bigint;
@@ -37,17 +35,16 @@ export function useStreamTipping(chainId: number = 10143) {
   // 获取当前链 - Monad Testnet (10143) or Ethereum Sepolia (11155111)
   const chain = chainId === 10143 ? monadTestnet : ethereumSepolia;
 
-  // 获取合约地址
-  const contractAddress = chainId === 10143
-    ? deploymentInfo.monad.tipStream
-    : deploymentInfo.sepolia.tipStream;
-
   // 获取合约实例
-  const contract = getContract({
-    client,
-    chain,
-    address: contractAddress,
-  });
+  const getContractSafe = useCallback(() => {
+    const address = getContractAddress(chainId);
+    return getContract({
+      client,
+      chain,
+      address,
+      abi: UNIFIED_TIPPING_ABI,
+    });
+  }, [chain, chainId]);
 
   /**
    * 加载用户的流式打赏状态
@@ -59,17 +56,17 @@ export function useStreamTipping(chainId: number = 10143) {
     }
 
     try {
+      const contract = getContractSafe();
       const result = await readContract({
         contract,
-        method: "function getStream(address _user) external view returns (uint256 roomId, uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)",
+        method: "function getStream(address _user) external view returns (uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)",
         params: [account.address],
       });
 
-      const [roomId, ratePerSecond, startTime, balance, active, currentAmount] = result;
+      const [ratePerSecond, startTime, balance, active, currentAmount] = result;
 
       if (active) {
         setStreamState({
-          roomId,
           ratePerSecond,
           startTime,
           balance,
@@ -79,11 +76,12 @@ export function useStreamTipping(chainId: number = 10143) {
       } else {
         setStreamState(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load stream state:", err);
+      setError(err?.message || "读取流式打赏状态失败");
       setStreamState(null);
     }
-  }, [account?.address, wallet, contract]);
+  }, [account?.address, wallet, getContractSafe]);
 
   /**
    * 检查余额是否不足
@@ -94,6 +92,7 @@ export function useStreamTipping(chainId: number = 10143) {
     }
 
     try {
+      const contract = getContractSafe();
       const result = await readContract({
         contract,
         method: "function isStreamLowBalance(address _user) external view returns (bool, uint256)",
@@ -106,16 +105,14 @@ export function useStreamTipping(chainId: number = 10143) {
       console.error("Failed to check low balance:", err);
       return { isLow: false, remainingTime: 0 };
     }
-  }, [account?.address, wallet, contract, streamState?.active]);
+  }, [account?.address, wallet, getContractSafe, streamState?.active]);
 
   /**
    * 开始流式打赏
-   * @param roomId 直播间 ID
    * @param ratePerSecond 每秒打赏金额（wei）
    * @param initialBalance 初始余额（wei）
    */
   const startStream = async (
-    roomId: number,
     ratePerSecond: string,
     initialBalance: string
   ) => {
@@ -124,16 +121,32 @@ export function useStreamTipping(chainId: number = 10143) {
       return;
     }
 
+    const rate = BigInt(ratePerSecond);
+    const balance = BigInt(initialBalance);
+    if (rate <= 0n) {
+      setError("每秒费率必须大于 0");
+      return;
+    }
+    if (balance <= 0n) {
+      setError("初始余额必须大于 0");
+      return;
+    }
+    if (rate > balance) {
+      setError("费率不能大于初始余额");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setTxHash(null);
 
     try {
+      const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
-        method: "function startStream(uint256 _roomId, uint256 _ratePerSecond) external payable",
-        params: [BigInt(roomId), BigInt(ratePerSecond)],
-        value: BigInt(initialBalance),
+        method: "function startStream(uint256 _ratePerSecond) external payable",
+        params: [rate],
+        value: balance,
       });
 
       const { transactionHash } = await sendTransaction({
@@ -177,6 +190,7 @@ export function useStreamTipping(chainId: number = 10143) {
     setTxHash(null);
 
     try {
+      const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
         method: "function stopStream() external",
@@ -220,16 +234,23 @@ export function useStreamTipping(chainId: number = 10143) {
       return;
     }
 
+    const topUp = BigInt(amount);
+    if (topUp <= 0n) {
+      setError("充值金额必须大于 0");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setTxHash(null);
 
     try {
+      const contract = getContractSafe();
       const transaction = prepareContractCall({
         contract,
         method: "function topUpStream() external payable",
         params: [],
-        value: BigInt(amount),
+        value: topUp,
       });
 
       const { transactionHash } = await sendTransaction({

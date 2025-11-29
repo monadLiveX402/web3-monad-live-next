@@ -1,5 +1,7 @@
 # 创建和管理直播间脚本
 
+> 说明：前端已迁移到单合约 `UnifiedTipping`。本目录脚本基于旧版 `LiveRoom/TipStream` 合约，若需继续使用请先适配新合约。
+
 ## create-room.js - 统一创建/注册直播间
 
 这个脚本可以：

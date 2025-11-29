@@ -6,11 +6,6 @@
  * 1. 确保当前前端使用的合约地址与最近部署的地址一致
  * 2. 支持通过环境变量覆盖，便于临时测试
  * 3. 如果发现缺失或不一致，立即打印错误并以非零状态退出
- *
- * 数据源优先级（高 → 低）：
- * - 环境变量：NEXT_PUBLIC_LIVE_ROOM_ADDRESS / NEXT_PUBLIC_TIP_STREAM_ADDRESS
- * - 前端 deployment-info.ts（编译产物）
- * - 合约仓库 ../web3-monad-live-contract/deployment-info.json（如果存在）
  */
 
 const fs = require("fs");
@@ -18,8 +13,8 @@ const path = require("path");
 
 // 支持的链
 const CHAINS = [
-  { key: "monad", chainId: 10143, envLive: "NEXT_PUBLIC_LIVE_ROOM_ADDRESS", envTip: "NEXT_PUBLIC_TIP_STREAM_ADDRESS" },
-  { key: "sepolia", chainId: 11155111, envLive: "NEXT_PUBLIC_ETH_LIVE_ROOM_ADDRESS", envTip: "NEXT_PUBLIC_ETH_TIP_STREAM_ADDRESS" },
+  { key: "monad", chainId: 10143, env: "NEXT_PUBLIC_UNIFIED_TIPPING_ADDRESS" },
+  { key: "sepolia", chainId: 11155111, env: "NEXT_PUBLIC_ETH_UNIFIED_TIPPING_ADDRESS" },
 ];
 
 // 读取前端 deployment-info.ts
@@ -34,12 +29,10 @@ function readFrontendDeployment() {
   };
   return {
     monad: {
-      liveRoom: extract("monad\\s*:\\s*{[^}]*liveRoom"),
-      tipStream: extract("monad\\s*:\\s*{[^}]*tipStream"),
+      unifiedTipping: extract("unifiedTipping"),
     },
     sepolia: {
-      liveRoom: extract("sepolia\\s*:\\s*{[^}]*liveRoom"),
-      tipStream: extract("sepolia\\s*:\\s*{[^}]*tipStream"),
+      unifiedTipping: extract("unifiedTipping"),
     },
   };
 }
@@ -66,35 +59,28 @@ function main() {
   let ok = true;
   console.log("🔎 Checking contract addresses...\n");
 
-  CHAINS.forEach(({ key, envLive, envTip }) => {
-    const envLiveAddr = process.env[envLive];
-    const envTipAddr = process.env[envTip];
+  CHAINS.forEach(({ key, env }) => {
+    const envAddr = process.env[env];
 
-    const frontendLive = frontend?.[key]?.liveRoom || "";
-    const frontendTip = frontend?.[key]?.tipStream || "";
+    const frontendAddr = frontend?.[key]?.unifiedTipping || "";
 
-    const contractLive = contractDeploy?.contracts?.LiveRoom?.address || contractDeploy?.[key]?.liveRoom || "";
-    const contractTip = contractDeploy?.contracts?.TipStream?.address || contractDeploy?.[key]?.tipStream || "";
+    const contractAddr =
+      contractDeploy?.contracts?.UnifiedTipping?.address ||
+      contractDeploy?.[key]?.unifiedTipping ||
+      "";
 
-    const resolvedLive = envLiveAddr || frontendLive || contractLive;
-    const resolvedTip = envTipAddr || frontendTip || contractTip;
+    const resolved = envAddr || frontendAddr || contractAddr;
 
     console.log(`Chain: ${key}`);
-    console.log(`  LiveRoom  -> env:${envLiveAddr || "-"} | frontend:${frontendLive || "-"} | contract:${contractLive || "-"}`);
-    console.log(`               resolved: ${resolvedLive || "(missing)"}`);
-    console.log(`  TipStream -> env:${envTipAddr || "-"} | frontend:${frontendTip || "-"} | contract:${contractTip || "-"}`);
-    console.log(`               resolved: ${resolvedTip || "(missing)"}`);
+    console.log(`  UnifiedTipping -> env:${envAddr || "-"} | frontend:${frontendAddr || "-"} | contract:${contractAddr || "-"}`);
+    console.log(`                     resolved: ${resolved || "(missing)"}`);
 
-    if (!isAddress(resolvedLive)) {
+    if (!isAddress(resolved)) {
       ok = false;
-      console.error(`❌ [${key}] LiveRoom 地址缺失或格式错误`);
-    }
-    if (!isAddress(resolvedTip)) {
-      ok = false;
-      console.error(`❌ [${key}] TipStream 地址缺失或格式错误`);
+      console.error(`❌ [${key}] UnifiedTipping 地址缺失或格式错误`);
     }
 
-    if (frontendLive && contractLive && frontendLive.toLowerCase() !== contractLive.toLowerCase()) {
+    if (frontendAddr && contractAddr && frontendAddr.toLowerCase() !== contractAddr.toLowerCase()) {
       console.warn(`⚠️  [${key}] frontend deployment-info.ts 与 合约仓库 deployment-info.json 不一致`);
       ok = false;
     }

@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface TipEventStreamProps {
   chainId: number;
-  roomId?: number;
   maxDisplay?: number;
 }
 
@@ -16,10 +15,10 @@ interface TipEventStreamProps {
  */
 export function TipEventStream({
   chainId,
-  roomId,
   maxDisplay = 10,
 }: TipEventStreamProps) {
-  const { events, loading, error } = useLiveEvents(chainId, roomId);
+  const { events, loading, error } = useLiveEvents(chainId);
+  const currency = chainId === 10143 ? "MON" : "ETH";
 
   // 只显示最近的几条
   const displayEvents = events.slice(0, maxDisplay);
@@ -88,7 +87,7 @@ export function TipEventStream({
                           {event.tipper.slice(0, 6)}...{event.tipper.slice(-4)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          打赏了直播间 #{Number(event.roomId)}
+                        {event.mode === "instant" ? "即时打赏" : "流式打赏"}
                         </p>
                       </div>
                     </div>
@@ -96,7 +95,7 @@ export function TipEventStream({
                     {/* 金额显示 */}
                     <div className="text-right">
                       <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
-                        {formatEther(event.amount)} MON
+                        {formatEther(event.amount)} {currency}
                       </p>
                       <p className="text-xs text-gray-400">
                         {new Date(Number(event.timestamp) * 1000).toLocaleTimeString()}
@@ -135,9 +134,9 @@ export function TipEventStream({
                 <p className="text-2xl font-bold text-pink-600">
                   {formatEther(
                     events.reduce((sum, e) => sum + e.amount, 0n)
-                  )}
+                  )} {currency}
                 </p>
-                <p className="text-xs text-gray-500">总金额 (MON)</p>
+                <p className="text-xs text-gray-500">总金额 ({currency})</p>
               </div>
             </div>
           </motion.div>

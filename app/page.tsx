@@ -13,22 +13,9 @@ import { defaultStream } from '@/lib/livestream-config'
 import dynamic from 'next/dynamic'
 import TipPanel from '@/components/TipPanel'
 import { TipEventStream } from '@/components/TipEventStream'
-import { useLiveRoom } from '@/hooks/useLiveRoom'
+import { useUnifiedTipping } from '@/hooks/useLiveRoom'
 import { formatEther } from 'viem'
-
-const parseRoomId = (value: string | undefined, fallback: number) => {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
-}
-
-const ROOM_IDS: Record<'monad' | 'ethereum', number> = {
-  monad: parseRoomId(process.env.NEXT_PUBLIC_MONAD_ROOM_ID, 3),
-  ethereum: parseRoomId(
-    process.env.NEXT_PUBLIC_ETHEREUM_ROOM_ID ||
-      process.env.NEXT_PUBLIC_SEPOLIA_ROOM_ID,
-    4
-  )
-}
+import { DashboardCharts } from '@/components/DashboardCharts'
 
 // Dynamically import HLS player to avoid SSR issues
 const HLSPlayerComponent = dynamic(
@@ -168,8 +155,8 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
   const wallet = useActiveWallet()
 
   const chainId = currentChain === 'monad' ? 10143 : 11155111
-  const roomId = currentChain === 'monad' ? ROOM_IDS.monad : ROOM_IDS.ethereum
-  const { contractStats, loading: statsLoading, refresh } = useLiveRoom(chainId)
+  const { contractStats, loading: statsLoading, refresh } =
+    useUnifiedTipping(chainId)
 
   // 打赏成功后刷新统计数据
   const handleTipSuccess = () => {
@@ -210,7 +197,6 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
         <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
           <TipEventStream
             chainId={chainId}
-            roomId={roomId}
             maxDisplay={5}
           />
         </div>
@@ -257,26 +243,39 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
             </div>
 
             <div className="bg-[#1a0b2e]/50 rounded-lg p-4">
-              <div className="text-gray-400 text-sm mb-1">总房间数:</div>
+              <div className="text-gray-400 text-sm mb-1">即时打赏总额:</div>
               <div className="text-3xl font-bold text-white">
                 {statsLoading
                   ? '...'
-                  : Number(contractStats?.totalRooms || BigInt(0))}
+                  : `${Number(
+                      formatEther(contractStats?.instantVolume || BigInt(0))
+                    ).toFixed(4)} ${currentChain === 'monad' ? 'MON' : 'ETH'}`}
               </div>
             </div>
 
             <div className="bg-[#1a0b2e]/50 rounded-lg p-4">
-              <div className="text-gray-400 text-sm mb-1">累计打赏次数:</div>
+              <div className="text-gray-400 text-sm mb-1">流式消耗总额:</div>
               <div className="text-3xl font-bold text-white">
                 {statsLoading
                   ? '...'
-                  : Number(contractStats?.totalTips || BigInt(0))}
+                  : `${Number(
+                      formatEther(contractStats?.streamVolume || BigInt(0))
+                    ).toFixed(4)} ${currentChain === 'monad' ? 'MON' : 'ETH'}`}
               </div>
             </div>
 
             <div className="bg-[#1a0b2e]/50 rounded-lg p-4">
-              <div className="text-gray-400 text-sm mb-1">累计打赏总额:</div>
+              <div className="text-gray-400 text-sm mb-1">当前活跃流:</div>
               <div className="text-3xl font-bold text-white">
+                {statsLoading
+                  ? '...'
+                  : Number(contractStats?.activeStreams || BigInt(0))}
+              </div>
+            </div>
+
+            <div className="bg-[#1a0b2e]/50 rounded-lg p-4">
+              <div className="text-gray-400 text-sm mb-1">累计合计:</div>
+              <div className="text-3xl font-bold text-white text-base">
                 {statsLoading
                   ? '...'
                   : `${Number(
@@ -284,19 +283,11 @@ function LivePage({ currentChain }: { currentChain: 'monad' | 'ethereum' }) {
                     ).toFixed(4)} ${currentChain === 'monad' ? 'MON' : 'ETH'}`}
               </div>
             </div>
-
-            <div className="bg-[#1a0b2e]/50 rounded-lg p-4">
-              <div className="text-gray-400 text-sm mb-1">数据更新时间:</div>
-              <div className="text-3xl font-bold text-white text-base">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Unified Tip Panel */}
         <TipPanel
-          roomId={roomId}
           chainId={chainId}
           wallet={wallet || null}
           account={account || null}
@@ -313,12 +304,24 @@ function DashboardPage({
   currentChain: 'monad' | 'ethereum'
 }) {
   const chainId = currentChain === 'monad' ? 10143 : 11155111
-  const { contractStats, loading: statsLoading } = useLiveRoom(chainId)
+  const { contractStats, loading: statsLoading } = useUnifiedTipping(chainId)
 
   const currency = currentChain === 'monad' ? 'MON' : 'ETH'
   const totalVolume = statsLoading
     ? '...'
     : Number(formatEther(contractStats?.totalVolume || BigInt(0))).toFixed(4)
+  const instantVolume = statsLoading
+    ? '...'
+    : Number(formatEther(contractStats?.instantVolume || BigInt(0))).toFixed(4)
+  const streamVolume = statsLoading
+    ? '...'
+    : Number(formatEther(contractStats?.streamVolume || BigInt(0))).toFixed(4)
+  const instantValue = statsLoading
+    ? 0
+    : Number(formatEther(contractStats?.instantVolume || BigInt(0)))
+  const streamValue = statsLoading
+    ? 0
+    : Number(formatEther(contractStats?.streamVolume || BigInt(0)))
 
   return (
     <div className="space-y-6">
@@ -341,29 +344,25 @@ function DashboardPage({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-400 text-sm">总房间数</span>
+            <span className="text-gray-400 text-sm">即时打赏总额</span>
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center text-white text-lg">
-              🏠
+              ⚡
             </div>
           </div>
           <div className="text-2xl font-bold text-white">
-            {statsLoading
-              ? '...'
-              : Number(contractStats?.totalRooms || BigInt(0))}
+            {instantVolume} {currency}
           </div>
         </div>
 
         <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-400 text-sm">总打赏次数</span>
+            <span className="text-gray-400 text-sm">流式消耗总额</span>
             <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white text-lg">
-              💝
+              💧
             </div>
           </div>
           <div className="text-2xl font-bold text-white">
-            {statsLoading
-              ? '...'
-              : Number(contractStats?.totalTips || BigInt(0))}
+            {streamVolume} {currency}
           </div>
         </div>
 
@@ -381,71 +380,29 @@ function DashboardPage({
 
         <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-400 text-sm">合约余额</span>
+            <span className="text-gray-400 text-sm">活跃流数量</span>
             <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center text-white text-lg">
               📊
             </div>
           </div>
-          <div className="text-2xl font-bold text-white">0 {currency}</div>
-          <div className="text-xs text-green-400 mt-1">✓ 已自动分账</div>
+          <div className="text-2xl font-bold text-white">
+            {statsLoading ? '...' : Number(contractStats?.activeStreams || BigInt(0))}
+          </div>
+          <div className="text-xs text-green-400 mt-1">✓ 持续流中</div>
         </div>
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pie Chart */}
-        <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
-          <h3 className="text-white font-semibold mb-6">收益分析图</h3>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-gray-400">饼图占位符</div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">直播 22.8%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">打赏 34.5%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-cyan-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">主播 11.7%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">课程 10.7%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">其他 23.3%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Line Chart */}
-        <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
-          <h3 className="text-white font-semibold mb-6">实时趋势图</h3>
-          <div className="flex items-center justify-center py-12">
-            <div className="text-gray-400">折线图占位符</div>
-          </div>
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">打赏</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-              <span className="text-gray-400 text-sm">订阅</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardCharts
+        instantVolume={instantValue}
+        streamVolume={streamValue}
+        currency={currency}
+      />
 
       {/* Transaction Table - Real Tip History */}
       <div className="bg-[#0a0118] rounded-2xl p-6 border border-purple-800/30">
         <h3 className="text-white font-semibold mb-6">打赏历史记录</h3>
-        <TipEventStream chainId={chainId} roomId={roomId} maxDisplay={10} />
+        <TipEventStream chainId={chainId} maxDisplay={10} />
       </div>
     </div>
   )

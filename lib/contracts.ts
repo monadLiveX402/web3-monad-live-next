@@ -1,63 +1,29 @@
 import deploymentInfo from "@/deployment-info";
 
 /**
- * LiveRoom Contract ABI
+ * UnifiedTipping Contract ABI
+ * 支持一次性打赏 + 流式打赏
  */
-export const LIVE_ROOM_ABI = [
-  "function createRoom(uint256 _schemeId) external returns (uint256)",
-  "function tip(uint256 _roomId) external payable",
-  "function tipMultiple(uint256 _roomId, uint256 _count) external payable",
-  "function getRoom(uint256 _roomId) external view returns (address streamer, uint256 schemeId, bool active, uint256 createdAt, uint256 totalReceived, uint256 tipCount)",
-  "function getStreamerRooms(address _streamer) external view returns (uint256[] memory)",
-  "function getUserStats(address _user) external view returns (uint256 totalTipped, uint256 tipCount)",
-  "function getRecentTips(uint256 _limit) external view returns (tuple(uint256 roomId, address tipper, uint256 amount, uint256 timestamp)[] memory)",
-  "function getRoomTips(uint256 _roomId, uint256 _limit) external view returns (tuple(uint256 roomId, address tipper, uint256 amount, uint256 timestamp)[] memory)",
-  "function getContractStats() external view returns (uint256 totalRooms, uint256 totalTips, uint256 totalVolume)",
-  "event RoomCreated(uint256 indexed roomId, address indexed streamer, uint256 schemeId)",
-  "event Tipped(uint256 indexed roomId, address indexed tipper, address indexed streamer, uint256 amount, uint256 timestamp)",
-] as const;
-
-/**
- * TipStream Contract ABI
- */
-export const TIP_STREAM_ABI = [
-  "function registerRoom(uint256 _roomId, uint256 _schemeId) external",
-  "function startStream(uint256 _roomId, uint256 _ratePerSecond) external payable",
+export const UNIFIED_TIPPING_ABI = [
+  "function tip() external payable",
+  "function startStream(uint256 _ratePerSecond) external payable",
   "function stopStream() external",
   "function topUpStream() external payable",
   "function isStreamLowBalance(address _user) external view returns (bool, uint256)",
-  "function getStream(address _user) external view returns (uint256 roomId, uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)",
-  "function getStreamStats() external view returns (uint256 totalStreamAmount, uint256 activeStreamCount, uint256 totalStreams)",
-  "function getRoomInfo(uint256 _roomId) external view returns (address streamer, uint256 schemeId, bool active)",
-  "event RoomRegistered(uint256 indexed roomId, address indexed streamer, uint256 schemeId)",
-  "event StreamStarted(address indexed tipper, uint256 indexed roomId, uint256 ratePerSecond, uint256 balance, uint256 timestamp)",
-  "event StreamStopped(address indexed tipper, uint256 indexed roomId, uint256 duration, uint256 amount, uint256 timestamp)",
+  "function getStream(address _user) external view returns (uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)",
+  "function getStats() external view returns (uint256 _instantVolume, uint256 _streamVolume, uint256 _activeStreams)",
+  "event InstantTipped(address indexed tipper, uint256 amount, uint256 platformShare, uint256 contractShare, uint256 timestamp)",
+  "event StreamStarted(address indexed tipper, uint256 ratePerSecond, uint256 balance, uint256 timestamp)",
   "event StreamTopUp(address indexed tipper, uint256 amount, uint256 newBalance)",
+  "event StreamStopped(address indexed tipper, uint256 duration, uint256 amountUsed, uint256 platformShare, uint256 contractShare, uint256 refund, uint256 timestamp)",
 ] as const;
 
-/**
- * RevenueShare402 Contract ABI
- */
-export const REVENUE_SHARE_ABI = [
-  "function createScheme(string memory _name, address[] memory _recipients, uint256[] memory _percentages) external returns (uint256)",
-  "function getScheme(uint256 _schemeId) external view returns (string memory name, address[] memory recipients, uint256[] memory percentages, bool active, uint256 createdAt)",
-  "function getSchemeCount() external view returns (uint256)",
-  "function getStats() external view returns (uint256 totalDistributed, uint256 totalDistributions, uint256 schemeCount)",
-  "event SchemeCreated(uint256 indexed schemeId, string name, address[] recipients, uint256[] percentages)",
-  "event RevenueDistributed(uint256 indexed schemeId, address indexed payer, uint256 totalAmount, address[] recipients, uint256[] amounts)",
-] as const;
-
-/**
- * Contract addresses configuration
- */
 type DeploymentInfo = {
   monad: {
-    liveRoom: string;
-    tipStream: string;
+    unifiedTipping: string;
   };
   sepolia: {
-    liveRoom: string;
-    tipStream: string;
+    unifiedTipping: string;
   };
 };
 
@@ -65,43 +31,31 @@ const deployments = deploymentInfo as DeploymentInfo;
 
 export const CONTRACTS = {
   monad: {
-    liveRoom:
-      process.env.NEXT_PUBLIC_LIVE_ROOM_ADDRESS ||
-      deployments.monad?.liveRoom ||
-      "",
-    tipStream:
-      process.env.NEXT_PUBLIC_TIP_STREAM_ADDRESS ||
-      deployments.monad?.tipStream ||
+    unifiedTipping:
+      process.env.NEXT_PUBLIC_UNIFIED_TIPPING_ADDRESS ||
+      deployments.monad?.unifiedTipping ||
       "",
   },
   ethereum: {
-    // For comparison, you would deploy the same contracts on Ethereum Sepolia
-    liveRoom:
-      process.env.NEXT_PUBLIC_ETH_LIVE_ROOM_ADDRESS ||
-      deployments.sepolia?.liveRoom ||
-      "",
-    tipStream:
-      process.env.NEXT_PUBLIC_ETH_TIP_STREAM_ADDRESS ||
-      deployments.sepolia?.tipStream ||
+    unifiedTipping:
+      process.env.NEXT_PUBLIC_ETH_UNIFIED_TIPPING_ADDRESS ||
+      deployments.sepolia?.unifiedTipping ||
       "",
   },
 } as const;
 
 /**
- * Get contract address for current chain
+ * Get UnifiedTipping contract address for current chain
  */
-export function getContractAddress(
-  chainId: number,
-  contract: "liveRoom" | "tipStream"
-): string {
+export function getContractAddress(chainId: number): string {
   if (chainId === 10143) {
-    const address = CONTRACTS.monad[contract];
+    const address = CONTRACTS.monad.unifiedTipping;
     if (!address) {
       throw new Error("Missing Monad contract address configuration");
     }
     return address;
   } else if (chainId === 11155111) {
-    const address = CONTRACTS.ethereum[contract];
+    const address = CONTRACTS.ethereum.unifiedTipping;
     if (!address) {
       throw new Error("Missing Sepolia contract address configuration");
     }

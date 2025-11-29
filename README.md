@@ -56,8 +56,8 @@ Edit `.env.local` with your values:
 NEXT_PUBLIC_THIRDWEB_CLIENT_ID=your_client_id_here
 
 # Contract Addresses (Deploy contracts first)
-NEXT_PUBLIC_LIVE_ROOM_ADDRESS=0xYourLiveRoomContractAddress
-NEXT_PUBLIC_TIP_STREAM_ADDRESS=0xYourTipStreamContractAddress
+NEXT_PUBLIC_UNIFIED_TIPPING_ADDRESS=0xYourUnifiedTippingAddress
+NEXT_PUBLIC_ETH_UNIFIED_TIPPING_ADDRESS=0xYourSepoliaUnifiedTippingAddress
 ```
 
 ### 3. Deploy Contracts
@@ -139,34 +139,19 @@ web3-monad-live-next/
 └── README.md
 ```
 
-## Smart Contracts
+## Smart Contract
 
-### LiveRoom Contract
+### UnifiedTipping
 
-Manages live streaming rooms and one-time tipping:
-
-```solidity
-function createRoom(uint256 _schemeId) external returns (uint256)
-function tip(uint256 _roomId) external payable
-function tipMultiple(uint256 _roomId, uint256 _count) external payable
-```
-
-### TipStream Contract
-
-Handles continuous streaming tips:
+单合约同时支持一次性打赏与流式打赏：
 
 ```solidity
-function startStream(uint256 _roomId, uint256 _ratePerSecond) external payable
-function stopStream() external
+function tip() external payable
+function startStream(uint256 _ratePerSecond) external payable
 function topUpStream() external payable
-```
-
-### RevenueShare402 Contract
-
-Manages revenue distribution with X402 integration:
-
-```solidity
-function createScheme(string memory _name, address[] memory _recipients, uint256[] memory _percentages) external
+function stopStream() external
+function getStats() external view returns (uint256 instantVolume, uint256 streamVolume, uint256 activeStreams)
+function getStream(address _user) external view returns (uint256 ratePerSecond, uint256 startTime, uint256 balance, bool active, uint256 currentAmount)
 ```
 
 ## Performance Comparison

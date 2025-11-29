@@ -5,12 +5,10 @@ import { useStreamTipping } from "@/hooks/useStreamTipping";
 import { formatEther, parseEther } from "ethers";
 
 interface StreamPanelProps {
-  roomId: number;
   chainId?: number;
 }
 
 export default function StreamPanel({
-  roomId,
   chainId = 10143,
 }: StreamPanelProps) {
   const {
@@ -92,7 +90,7 @@ export default function StreamPanel({
     try {
       const rateWei = parseEther(ratePerSecond).toString();
       const balanceWei = parseEther(initialBalance).toString();
-      await startStream(roomId, rateWei, balanceWei);
+      await startStream(rateWei, balanceWei);
     } catch (err) {
       console.error("Start stream failed:", err);
     }

@@ -1,13 +1,12 @@
 "use client";
 
-import { useHistoricalTips, useLiveEvents } from "@/hooks/useLiveEvents";
+import { useLiveEvents } from "@/hooks/useLiveEvents";
 import { formatEther } from "viem";
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 
 interface TipLeaderboardProps {
   chainId: number;
-  roomId?: number;
   limit?: number;
 }
 
@@ -24,22 +23,15 @@ interface TipperStats {
  */
 export function TipLeaderboard({
   chainId,
-  roomId,
   limit = 50,
 }: TipLeaderboardProps) {
-  // 获取历史数据
-  const { tips: historicalTips, loading: loadingHistory } = useHistoricalTips(
-    chainId,
-    roomId,
-    limit
-  );
-
-  // 获取实时事件
-  const { events: liveEvents } = useLiveEvents(chainId, roomId);
+  // 仅使用实时事件（合约无历史查询接口）
+  const { events: liveEvents, loading: loadingEvents } = useLiveEvents(chainId);
+  const currency = chainId === 10143 ? "MON" : "ETH";
 
   // 合并历史数据和实时数据，并计算排行榜
   const leaderboard = useMemo(() => {
-    const allTips = [...historicalTips, ...liveEvents];
+    const allTips = liveEvents.slice(0, limit);
     const statsMap = new Map<string, TipperStats>();
 
     // 聚合每个用户的打赏数据
@@ -69,7 +61,7 @@ export function TipLeaderboard({
         return Number(b.lastTipTime - a.lastTipTime);
       })
       .slice(0, 10); // 只显示前10名
-  }, [historicalTips, liveEvents]);
+  }, [liveEvents, limit]);
 
   // 计算总统计
   const totalStats = useMemo(() => {
@@ -83,7 +75,7 @@ export function TipLeaderboard({
     return total;
   }, [leaderboard]);
 
-  if (loadingHistory) {
+  if (loadingEvents) {
     return (
       <div className="rounded-lg bg-gray-50 p-8 text-center">
         <div className="animate-spin h-8 w-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4" />
@@ -100,7 +92,7 @@ export function TipLeaderboard({
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-lg bg-white/20 p-4 backdrop-blur-sm">
             <p className="text-sm opacity-90">总打赏金额</p>
-            <p className="text-2xl font-bold">{formatEther(totalStats.amount)} MON</p>
+            <p className="text-2xl font-bold">{formatEther(totalStats.amount)} {currency}</p>
           </div>
           <div className="rounded-lg bg-white/20 p-4 backdrop-blur-sm">
             <p className="text-sm opacity-90">总打赏次数</p>
@@ -158,7 +150,7 @@ export function TipLeaderboard({
                   <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
                     {formatEther(user.totalAmount)}
                   </p>
-                  <p className="text-xs text-gray-400">MON</p>
+                  <p className="text-xs text-gray-400">{currency}</p>
                 </div>
               </div>
 
